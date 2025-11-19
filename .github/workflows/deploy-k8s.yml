@@ -1,0 +1,95 @@
+name: Deploy App to Kubernetes
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+  IMAGE_NAME: nproject-app
+
+jobs:
+  test:
+    name: Run application tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/requirements.txt
+
+      - name: Run pytest
+        working-directory: ./app
+        run: python -m pytest tests/ -v
+
+  build-and-push:
+    name: Build and push Docker image
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Yandex Container Registry
+        run: |
+          echo ${{ secrets.YC_TOKEN }} | docker login \
+            --username oauth \
+            --password-stdin \
+            cr.yandex
+
+      - name: Build and push image
+        run: |
+          IMAGE_TAG=cr.yandex/${{ env.YC_FOLDER_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker buildx build \
+            --push \
+            --tag "$IMAGE_TAG" \
+            --file ./app/Dockerfile \
+            ./app
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+  deploy:
+    name: Deploy to Yandex Kubernetes
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install YC CLI
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -n
+          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+
+      - name: Configure YC CLI
+        run: |
+          yc config set token ${{ secrets.YC_TOKEN }}
+          yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
+          yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
+
+      - name: Get kubeconfig for cluster
+        run: |
+          # Имя кластера должно совпадать с тем, что ты создаёшь в Terraform
+          yc k8s cluster get-credentials --name k8s-nproject-site --external
+
+      - name: Replace image tag in deployment.yaml
+        run: |
+          sed -i "s|__FOLDER_ID__|${{ secrets.YC_FOLDER_ID }}|g" k8s/deployment.yaml
+          sed -i "s|__TAG__|${{ github.sha }}|g" k8s/deployment.yaml
+
+      - name: Apply Kubernetes manifests
+        run: kubectl apply -f k8s/

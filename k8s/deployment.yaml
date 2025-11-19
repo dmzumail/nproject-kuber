@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nproject-app
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nproject-app
+  template:
+    metadata:
+      labels:
+        app: nproject-app
+    spec:
+      containers:
+      - name: app
+        image: cr.yandex/__FOLDER_ID__/nproject-app:__TAG__
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DOMAIN
+          value: "nproject.site"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 2
+          periodSeconds: 5
