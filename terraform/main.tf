@@ -1,3 +1,4 @@
+
 # ========== DNS-зона ==========
 resource "yandex_dns_zone" "public" {
   name        = "zone-nproject-site"
@@ -23,9 +24,18 @@ resource "yandex_iam_service_account" "k8s_sa" {
   name = "sa-k8s-nproject-site"
 }
 
-resource "yandex_resourcemanager_folder_iam_member" "k8s_editor" {
+# Назначаем роли, необходимые для Kubernetes + ALB + Let's Encrypt
+resource "yandex_resourcemanager_folder_iam_member" "k8s_roles" {
+  for_each = toset([
+    "k8s.clusters.agent",
+    "container-registry.images.puller",
+    "load-balancer.admin",
+    "certificate-manager.certificates.creator",
+    "vpc.public_admin",
+    "editor"  # для упрощения, можно заменить на более точные роли
+  ])
   folder_id = var.yc_folder_id
-  role      = "editor"
+  role      = each.value
   member    = "serviceAccount:${yandex_iam_service_account.k8s_sa.id}"
 }
 
@@ -49,11 +59,6 @@ resource "yandex_kubernetes_cluster" "k8s" {
 
   service_account_id      = yandex_iam_service_account.k8s_sa.id
   node_service_account_id = yandex_iam_service_account.k8s_sa.id
-
-  ingress {
-    name        = "ingress-nproject-site"
-    description = "ALB for nproject.site"
-  }
 }
 
 # ========== Node Group ==========
