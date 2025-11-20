@@ -1,0 +1,117 @@
+name: Deploy Infrastructure and Application
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  terraform:
+    name: Provision Infrastructure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.0
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init -reconfigure
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
+
+      - name: Terraform Validate
+        working-directory: ./terraform
+        run: terraform validate
+
+      - name: Terraform Format
+        working-directory: ./terraform
+        run: terraform fmt -check
+
+      - name: Terraform Plan
+        working-directory: ./terraform
+        run: terraform plan -input=false
+        env:
+          TF_VAR_domain: "nproject.site"
+          TF_VAR_yc_token: ${{ secrets.YC_TOKEN }}
+          TF_VAR_yc_cloud_id: ${{ secrets.YC_CLOUD_ID }}
+          TF_VAR_yc_folder_id: ${{ secrets.YC_FOLDER_ID }}
+          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: ./terraform
+        run: terraform apply -auto-approve -input=false
+        env:
+          TF_VAR_domain: "nproject.site"
+          TF_VAR_yc_token: ${{ secrets.YC_TOKEN }}
+          TF_VAR_yc_cloud_id: ${{ secrets.YC_CLOUD_ID }}
+          TF_VAR_yc_folder_id: ${{ secrets.YC_FOLDER_ID }}
+          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
+
+  deploy:
+    name: Deploy Application to Kubernetes
+    needs: terraform  # ← ждёт успешного завершения terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/requirements.txt
+
+      - name: Run pytest
+        working-directory: ./app
+        run: python -m pytest tests/ -v
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Yandex Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: cr.yandex
+          username: oauth
+          password: ${{ secrets.YC_TOKEN }}
+
+      - name: Build and push image
+        run: |
+          IMAGE_TAG=cr.yandex/${{ secrets.YC_REGISTRY_ID }}/nproject-app:${{ github.sha }}
+          docker buildx build --push --tag "$IMAGE_TAG" --file ./app/Dockerfile ./app
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Install YC CLI
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -n -a
+          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+
+      - name: Configure YC CLI
+        run: |
+          yc config set token ${{ secrets.YC_TOKEN }}
+          yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
+          yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
+
+      - name: Get kubeconfig
+        run: yc k8s cluster get-credentials --name k8s-nproject-site --external
+
+      - name: Update image in deployment.yaml
+        run: |
+          sed -i "s|__FOLDER_ID__|${{ secrets.YC_FOLDER_ID }}|g" k8s/deployment.yaml
+          sed -i "s|__TAG__|${{ github.sha }}|g" k8s/deployment.yaml
+
+      - name: Apply Kubernetes manifests
+        run: kubectl apply -f k8s/
