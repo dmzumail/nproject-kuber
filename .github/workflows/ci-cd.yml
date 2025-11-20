@@ -5,6 +5,11 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+env:
+  YC_FOLDER_ID:     ${{ secrets.YC_FOLDER_ID }}
+  YC_REGISTRY_ID:   ${{ secrets.YC_REGISTRY_ID }}
+  IMAGE_NAME:       nproject-app
+
 jobs:
   terraform:
     name: Provision Infrastructure
@@ -58,7 +63,7 @@ jobs:
 
   deploy:
     name: Deploy Application to Kubernetes
-    needs: terraform  # ← ждёт успешного завершения terraform
+    needs: terraform
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -69,12 +74,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install app dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r app/requirements.txt
 
-      - name: Run pytest
+      - name: Run tests
         working-directory: ./app
         run: python -m pytest tests/ -v
 
@@ -88,13 +93,17 @@ jobs:
           username: oauth
           password: ${{ secrets.YC_TOKEN }}
 
-      - name: Build and push image
+      - name: Build and push Docker image
         run: |
-          IMAGE_TAG=cr.yandex/${{ secrets.YC_REGISTRY_ID }}/nproject-app:${{ github.sha }}
-          docker buildx build --push --tag "$IMAGE_TAG" --file ./app/Dockerfile ./app
+          IMAGE_TAG=cr.yandex/${{ env.YC_REGISTRY_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker buildx build \
+            --push \
+            --tag "$IMAGE_TAG" \
+            --file ./app/Dockerfile \
+            ./app
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
-      - name: Install YC CLI
+      - name: Install Yandex Cloud CLI
         run: |
           curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -n -a
           echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
@@ -104,6 +113,11 @@ jobs:
           yc config set token ${{ secrets.YC_TOKEN }}
           yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
           yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
+
+      - name: Wait for cluster readiness (5 min)
+        run: |
+          echo "Waiting for Kubernetes cluster to become ready..."
+          sleep 300
 
       - name: Get kubeconfig
         run: yc k8s cluster get-credentials --name k8s-nproject-site --external
