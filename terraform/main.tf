@@ -1,14 +1,27 @@
-# DNS-зона остаётся — нужна для Let's Encrypt
+
+# ========== DNS-зона ==========
 resource "yandex_dns_zone" "public" {
-  name        = "zone-${replace(var.domain, ".", "-")}"
-  description = "Public DNS zone for ${var.domain}"
-  zone        = "${var.domain}."
+  name        = "zone-nproject-site"
+  description = "Public DNS zone for nproject.site"
+  zone        = "nproject.site."
   public      = true
 }
 
-# IAM Service Account для Kubernetes
+# ========== Сеть и подсеть ==========
+resource "yandex_vpc_network" "default" {
+  name = "net-nproject-site"
+}
+
+resource "yandex_vpc_subnet" "default" {
+  name           = "subnet-nproject-site"
+  zone           = "ru-central1-a"
+  network_id     = yandex_vpc_network.default.id
+  v4_cidr_blocks = ["192.168.10.0/24"]
+}
+
+# ========== IAM Service Account ==========
 resource "yandex_iam_service_account" "k8s_sa" {
-  name = "sa-k8s-${replace(var.domain, ".", "-")}"
+  name = "sa-k8s-nproject-site"
 }
 
 resource "yandex_resourcemanager_folder_iam_member" "k8s_editor" {
@@ -17,9 +30,14 @@ resource "yandex_resourcemanager_folder_iam_member" "k8s_editor" {
   member    = "serviceAccount:${yandex_iam_service_account.k8s_sa.id}"
 }
 
-# Kubernetes Cluster
+# ========== Container Registry ==========
+resource "yandex_container_registry" "default" {
+  name = "cr-nproject-site"
+}
+
+# ========== Kubernetes Cluster ==========
 resource "yandex_kubernetes_cluster" "k8s" {
-  name        = "k8s-nproject-site"  # ← именно это имя используется в deploy-k8s.yml!
+  name        = "k8s-nproject-site"
   network_id  = yandex_vpc_network.default.id
   master {
     version = "1.29"
@@ -39,7 +57,7 @@ resource "yandex_kubernetes_cluster" "k8s" {
   }
 }
 
-# Node Group
+# ========== Node Group ==========
 resource "yandex_kubernetes_node_group" "k8s_nodes" {
   cluster_id  = yandex_kubernetes_cluster.k8s.id
   name        = "ng-nproject-site"
