@@ -30,8 +30,8 @@ resource "yandex_resourcemanager_folder_iam_member" "k8s_roles" {
     "k8s.clusters.agent",
     "container-registry.images.puller",
     "load-balancer.admin",
-    "certificate-manager.certificates.editor",  
-    "vpc.admin",                                
+    "certificate-manager.certificates.editor",
+    "vpc.admin",
     "editor"
   ])
   folder_id = var.yc_folder_id
@@ -46,8 +46,8 @@ resource "yandex_container_registry" "default" {
 
 # ========== Kubernetes Cluster ==========
 resource "yandex_kubernetes_cluster" "k8s" {
-  name        = "k8s-nproject-site"
-  network_id  = yandex_vpc_network.default.id
+  name       = "k8s-nproject-site"
+  network_id = yandex_vpc_network.default.id
   master {
     version = "1.29"
     zonal {
@@ -63,9 +63,9 @@ resource "yandex_kubernetes_cluster" "k8s" {
 
 # ========== Node Group ==========
 resource "yandex_kubernetes_node_group" "k8s_nodes" {
-  cluster_id  = yandex_kubernetes_cluster.k8s.id
-  name        = "ng-nproject-site"
-  version     = "1.29"
+  cluster_id = yandex_kubernetes_cluster.k8s.id
+  name       = "ng-nproject-site"
+  version    = "1.29"
   instance_template {
     platform_id = "standard-v3"
     # nat устарел — используем network_interface (но в текущей версии можно оставить, если не критично)
