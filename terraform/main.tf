@@ -1,4 +1,3 @@
-
 # ========== DNS-зона ==========
 resource "yandex_dns_zone" "public" {
   name        = "zone-nproject-site"
