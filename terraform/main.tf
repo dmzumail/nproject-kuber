@@ -74,7 +74,7 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
 
     boot_disk {
       type = "network-hdd"
-      size = 20
+      size = 30
     }
   }
 
