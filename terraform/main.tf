@@ -46,10 +46,12 @@ resource "yandex_container_registry" "default" {
   name = "cr-nproject-site"
 }
 
-# Kubernetes Cluster (версия 1.29 + явные CIDR)
+# Kubernetes Cluster (версия 1.29 + явные CIDR как аргументы)
 resource "yandex_kubernetes_cluster" "k8s" {
-  name       = "k8s-nproject-site"
-  network_id = yandex_vpc_network.default.id
+  name                    = "k8s-nproject-site"
+  network_id              = yandex_vpc_network.default.id
+  cluster_ipv4_cidr_block = "10.244.0.0/16" # для Pod'ов
+  service_ipv4_cidr_block = "10.96.0.0/16"  # для Service'ов
 
   master {
     version = "1.29"
@@ -63,12 +65,6 @@ resource "yandex_kubernetes_cluster" "k8s" {
   service_account_id       = yandex_iam_service_account.k8s_sa.id
   node_service_account_id  = yandex_iam_service_account.k8s_sa.id
   node_ipv4_cidr_mask_size = 24
-
-  # Критически важный блок — предотвращает ошибку CIDR
-  ip_allocation_policy {
-    cluster_ipv4_cidr_block = "10.244.0.0/16" # для Pod'ов
-    service_ipv4_cidr_block = "10.96.0.0/16"  # для Service'ов
-  }
 }
 
 # Node Group
@@ -79,7 +75,7 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
 
   instance_template {
     platform_id = "standard-v3"
-    nat         = true # даёт исходящий интернет (предупреждение можно игнорировать)
+    nat         = true # даёт исходящий интернет
 
     resources {
       memory = 2
