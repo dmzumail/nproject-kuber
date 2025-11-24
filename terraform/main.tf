@@ -20,19 +20,22 @@ resource "yandex_vpc_subnet" "default" {
 
 # IAM Service Account
 resource "yandex_iam_service_account" "k8s_sa" {
-  name = "sa-k8s-nproject-site"
+  name        = "sa-k8s-nproject-site"
+  description = "Service account for Kubernetes cluster and node group"
 }
 
-# Правильные роли (актуальные на ноябрь 2025)
+# Необходимые IAM-роли (точный и минимально достаточный набор)
 resource "yandex_resourcemanager_folder_iam_member" "k8s_roles" {
   for_each = toset([
     "k8s.clusters.agent",
-    "container-registry.images.puller",
+    "vpc.admin",
     "load-balancer.admin",
-    "certificate-manager.certificates.user", # ✅ исправлено
-    "vpc.admin",                             # ✅ исправлено
-    "editor"
+    "container-registry.images.puller",
+    "certificate-manager.certificates.user",
+    "compute.viewer",              # ← обязательно для node group
+    "iam.serviceAccounts.user"     # ← обязательно для node_service_account_id
   ])
+
   folder_id = var.yc_folder_id
   role      = each.value
   member    = "serviceAccount:${yandex_iam_service_account.k8s_sa.id}"
@@ -43,12 +46,13 @@ resource "yandex_container_registry" "default" {
   name = "cr-nproject-site"
 }
 
-# Kubernetes Cluster (версия 1.30 — актуальная)
+# Kubernetes Cluster
 resource "yandex_kubernetes_cluster" "k8s" {
   name       = "k8s-nproject-site"
   network_id = yandex_vpc_network.default.id
+
   master {
-    version = "1.30" # ✅ вместо 1.29
+    version = "1.30"
     zonal {
       zone      = "ru-central1-a"
       subnet_id = yandex_vpc_subnet.default.id
@@ -58,21 +62,24 @@ resource "yandex_kubernetes_cluster" "k8s" {
 
   service_account_id      = yandex_iam_service_account.k8s_sa.id
   node_service_account_id = yandex_iam_service_account.k8s_sa.id
+  node_ipv4_cidr_mask_size = 24
 }
 
 # Node Group
 resource "yandex_kubernetes_node_group" "k8s_nodes" {
   cluster_id = yandex_kubernetes_cluster.k8s.id
   name       = "ng-nproject-site"
-  version    = "1.30" # ✅ вместо 1.29
+  version    = "1.30"
 
   instance_template {
     platform_id = "standard-v3"
-    # nat = true — устарел, но пока работает; можно удалить
+    nat         = true  # ← явно включите NAT для исходящего интернета!
+
     resources {
       memory = 2
       cores  = 2
     }
+
     boot_disk {
       type = "network-hdd"
       size = 20
@@ -87,7 +94,25 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
 
   allocation_policy {
     location {
-      zone = "ru-central1-a"
+      zone      = "ru-central1-a"
+      subnet_id = yandex_vpc_subnet.default.id  # ← указать явно!
     }
   }
+}
+
+# Outputs
+output "k8s_cluster_id" {
+  value = yandex_kubernetes_cluster.k8s.id
+}
+
+output "k8s_cluster_name" {
+  value = yandex_kubernetes_cluster.k8s.name
+}
+
+output "registry_id" {
+  value = yandex_container_registry.default.id
+}
+
+output "dns_zone_id" {
+  value = yandex_dns_zone.public.id
 }
