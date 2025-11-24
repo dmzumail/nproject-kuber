@@ -18,13 +18,13 @@ resource "yandex_vpc_subnet" "default" {
   v4_cidr_blocks = ["192.168.10.0/24"]
 }
 
-# IAM Service Account
+# IAM Service Account для Kubernetes
 resource "yandex_iam_service_account" "k8s_sa" {
   name        = "sa-k8s-nproject-site"
   description = "Service account for Kubernetes cluster"
 }
 
-# Просто назначаем editor — это работает
+# Назначаем роль 'editor' — это надёжно и работает в Yandex Cloud
 resource "yandex_resourcemanager_folder_iam_member" "k8s_sa_editor" {
   folder_id = var.yc_folder_id
   role      = "editor"
@@ -36,15 +36,15 @@ resource "yandex_container_registry" "default" {
   name = "cr-nproject-site"
 }
 
-# Kubernetes Cluster
+# Kubernetes Cluster (используем поддерживаемую версию 1.30)
 resource "yandex_kubernetes_cluster" "k8s" {
   name               = "k8s-nproject-site"
   network_id         = yandex_vpc_network.default.id
-  cluster_ipv4_range = "10.244.0.0/16"
-  service_ipv4_range = "10.96.0.0/16"
+  cluster_ipv4_range = "10.244.0.0/16" # CIDR для Pod'ов
+  service_ipv4_range = "10.96.0.0/16"  # CIDR для Service'ов
 
   master {
-    version = "1.29"
+    version = "1.30" # ← актуальная поддерживаемая версия
     zonal {
       zone      = "ru-central1-a"
       subnet_id = yandex_vpc_subnet.default.id
@@ -61,11 +61,11 @@ resource "yandex_kubernetes_cluster" "k8s" {
 resource "yandex_kubernetes_node_group" "k8s_nodes" {
   cluster_id = yandex_kubernetes_cluster.k8s.id
   name       = "ng-nproject-site"
-  version    = "1.29"
+  version    = "1.30" # ← та же версия
 
   instance_template {
     platform_id = "standard-v3"
-    nat         = true
+    nat         = true # даёт исходящий интернет (предупреждение можно игнорировать)
 
     resources {
       memory = 2
