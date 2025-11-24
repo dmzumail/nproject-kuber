@@ -24,7 +24,7 @@ resource "yandex_iam_service_account" "k8s_sa" {
   description = "Service account for Kubernetes cluster and node group"
 }
 
-# Минимально необходимые IAM-роли (без certificate-manager — он не нужен на этом этапе)
+# Минимально необходимые IAM-роли
 resource "yandex_resourcemanager_folder_iam_member" "k8s_roles" {
   for_each = toset([
     "k8s.clusters.agent",
@@ -33,7 +33,7 @@ resource "yandex_resourcemanager_folder_iam_member" "k8s_roles" {
     "container-registry.images.puller",
     "compute.viewer",
     "iam.serviceAccounts.user"
-    # "certificate-manager.certificates.user" ← раскомментировать ПОЗЖЕ, если будете использовать HTTPS
+    # "certificate-manager.certificates.user" ← раскомментировать позже, если нужен HTTPS
   ])
 
   folder_id = var.yc_folder_id
@@ -46,13 +46,13 @@ resource "yandex_container_registry" "default" {
   name = "cr-nproject-site"
 }
 
-# Kubernetes Cluster (стабильная версия 1.29)
+# Kubernetes Cluster (версия 1.29 + явные CIDR)
 resource "yandex_kubernetes_cluster" "k8s" {
   name       = "k8s-nproject-site"
   network_id = yandex_vpc_network.default.id
 
   master {
-    version = "1.29" # ← стабильная LTS-версия
+    version = "1.29"
     zonal {
       zone      = "ru-central1-a"
       subnet_id = yandex_vpc_subnet.default.id
@@ -63,17 +63,23 @@ resource "yandex_kubernetes_cluster" "k8s" {
   service_account_id       = yandex_iam_service_account.k8s_sa.id
   node_service_account_id  = yandex_iam_service_account.k8s_sa.id
   node_ipv4_cidr_mask_size = 24
+
+  # Критически важный блок — предотвращает ошибку CIDR
+  ip_allocation_policy {
+    cluster_ipv4_cidr_block = "10.244.0.0/16" # для Pod'ов
+    service_ipv4_cidr_block = "10.96.0.0/16"  # для Service'ов
+  }
 }
 
 # Node Group
 resource "yandex_kubernetes_node_group" "k8s_nodes" {
   cluster_id = yandex_kubernetes_cluster.k8s.id
   name       = "ng-nproject-site"
-  version    = "1.29" # ← та же стабильная версия
+  version    = "1.29"
 
   instance_template {
     platform_id = "standard-v3"
-    nat         = true # даёт нодам исходящий интернет
+    nat         = true # даёт исходящий интернет (предупреждение можно игнорировать)
 
     resources {
       memory = 2
