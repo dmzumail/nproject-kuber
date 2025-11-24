@@ -24,7 +24,7 @@ resource "yandex_iam_service_account" "k8s_sa" {
   description = "Service account for Kubernetes cluster and node group"
 }
 
-# Необходимые IAM-роли (без certificate-manager — он не нужен на этапе создания инфраструктуры)
+# Минимально необходимые IAM-роли (без certificate-manager — он не нужен на этом этапе)
 resource "yandex_resourcemanager_folder_iam_member" "k8s_roles" {
   for_each = toset([
     "k8s.clusters.agent",
@@ -33,7 +33,7 @@ resource "yandex_resourcemanager_folder_iam_member" "k8s_roles" {
     "container-registry.images.puller",
     "compute.viewer",
     "iam.serviceAccounts.user"
-    # "certificate-manager.certificates.user" ← раскомментируйте ПОЗЖЕ, если будете использовать cert-manager
+    # "certificate-manager.certificates.user" ← раскомментировать ПОЗЖЕ, если будете использовать HTTPS
   ])
 
   folder_id = var.yc_folder_id
@@ -46,13 +46,13 @@ resource "yandex_container_registry" "default" {
   name = "cr-nproject-site"
 }
 
-# Kubernetes Cluster
+# Kubernetes Cluster (стабильная версия 1.29)
 resource "yandex_kubernetes_cluster" "k8s" {
   name       = "k8s-nproject-site"
   network_id = yandex_vpc_network.default.id
 
   master {
-    version = "1.30"
+    version = "1.29" # ← стабильная LTS-версия
     zonal {
       zone      = "ru-central1-a"
       subnet_id = yandex_vpc_subnet.default.id
@@ -69,11 +69,11 @@ resource "yandex_kubernetes_cluster" "k8s" {
 resource "yandex_kubernetes_node_group" "k8s_nodes" {
   cluster_id = yandex_kubernetes_cluster.k8s.id
   name       = "ng-nproject-site"
-  version    = "1.30"
+  version    = "1.29" # ← та же стабильная версия
 
   instance_template {
     platform_id = "standard-v3"
-    nat         = true # Предупреждение есть, но работает — можно обновить позже
+    nat         = true # даёт нодам исходящий интернет
 
     resources {
       memory = 2
