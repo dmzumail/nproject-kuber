@@ -1,4 +1,3 @@
-# outputs.tf
 
 output "k8s_cluster_id" {
   description = "Kubernetes cluster ID"

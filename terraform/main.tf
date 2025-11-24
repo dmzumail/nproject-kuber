@@ -1,5 +1,3 @@
-# main.tf
-
 # DNS-зона
 resource "yandex_dns_zone" "public" {
   name        = "zone-nproject-site"
@@ -20,22 +18,22 @@ resource "yandex_vpc_subnet" "default" {
   v4_cidr_blocks = ["192.168.10.0/24"]
 }
 
-# IAM Service Account
+# IAM Service Account для Kubernetes
 resource "yandex_iam_service_account" "k8s_sa" {
   name        = "sa-k8s-nproject-site"
   description = "Service account for Kubernetes cluster and node group"
 }
 
-# Необходимые IAM-роли
+# Необходимые IAM-роли (без certificate-manager — он не нужен на этапе создания инфраструктуры)
 resource "yandex_resourcemanager_folder_iam_member" "k8s_roles" {
   for_each = toset([
     "k8s.clusters.agent",
     "vpc.admin",
     "load-balancer.admin",
     "container-registry.images.puller",
-    "certificate-manager.certificates.user",
     "compute.viewer",
     "iam.serviceAccounts.user"
+    # "certificate-manager.certificates.user" ← раскомментируйте ПОЗЖЕ, если будете использовать cert-manager
   ])
 
   folder_id = var.yc_folder_id
@@ -75,7 +73,7 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
 
   instance_template {
     platform_id = "standard-v3"
-    nat         = true
+    nat         = true # Предупреждение есть, но работает — можно обновить позже
 
     resources {
       memory = 2
