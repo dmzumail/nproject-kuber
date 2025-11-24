@@ -1,11 +1,8 @@
-output "dns_zone_id" {
-  description = "ID of the public DNS zone for nproject.site"
-  value       = yandex_dns_zone.public.id
-}
+# outputs.tf
 
-output "registry_id" {
-  description = "Yandex Container Registry ID"
-  value       = yandex_container_registry.default.id
+output "k8s_cluster_id" {
+  description = "Kubernetes cluster ID"
+  value       = yandex_kubernetes_cluster.k8s.id
 }
 
 output "k8s_cluster_name" {
@@ -13,9 +10,14 @@ output "k8s_cluster_name" {
   value       = yandex_kubernetes_cluster.k8s.name
 }
 
-output "k8s_cluster_id" {
-  description = "Kubernetes cluster ID"
-  value       = yandex_kubernetes_cluster.k8s.id
+output "registry_id" {
+  description = "Yandex Container Registry ID"
+  value       = yandex_container_registry.default.id
+}
+
+output "dns_zone_id" {
+  description = "ID of the public DNS zone for nproject.site"
+  value       = yandex_dns_zone.public.id
 }
 
 # Раскомментируй, если нужно увидеть NS-серверы для делегирования домена

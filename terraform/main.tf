@@ -1,3 +1,5 @@
+# main.tf
+
 # DNS-зона
 resource "yandex_dns_zone" "public" {
   name        = "zone-nproject-site"
@@ -24,7 +26,7 @@ resource "yandex_iam_service_account" "k8s_sa" {
   description = "Service account for Kubernetes cluster and node group"
 }
 
-# Необходимые IAM-роли (точный и минимально достаточный набор)
+# Необходимые IAM-роли
 resource "yandex_resourcemanager_folder_iam_member" "k8s_roles" {
   for_each = toset([
     "k8s.clusters.agent",
@@ -32,8 +34,8 @@ resource "yandex_resourcemanager_folder_iam_member" "k8s_roles" {
     "load-balancer.admin",
     "container-registry.images.puller",
     "certificate-manager.certificates.user",
-    "compute.viewer",              # ← обязательно для node group
-    "iam.serviceAccounts.user"     # ← обязательно для node_service_account_id
+    "compute.viewer",
+    "iam.serviceAccounts.user"
   ])
 
   folder_id = var.yc_folder_id
@@ -60,8 +62,8 @@ resource "yandex_kubernetes_cluster" "k8s" {
     public_ip = true
   }
 
-  service_account_id      = yandex_iam_service_account.k8s_sa.id
-  node_service_account_id = yandex_iam_service_account.k8s_sa.id
+  service_account_id       = yandex_iam_service_account.k8s_sa.id
+  node_service_account_id  = yandex_iam_service_account.k8s_sa.id
   node_ipv4_cidr_mask_size = 24
 }
 
@@ -73,7 +75,7 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
 
   instance_template {
     platform_id = "standard-v3"
-    nat         = true  # ← явно включите NAT для исходящего интернета!
+    nat         = true
 
     resources {
       memory = 2
@@ -95,24 +97,7 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
   allocation_policy {
     location {
       zone      = "ru-central1-a"
-      subnet_id = yandex_vpc_subnet.default.id  # ← указать явно!
+      subnet_id = yandex_vpc_subnet.default.id
     }
   }
-}
-
-# Outputs
-output "k8s_cluster_id" {
-  value = yandex_kubernetes_cluster.k8s.id
-}
-
-output "k8s_cluster_name" {
-  value = yandex_kubernetes_cluster.k8s.name
-}
-
-output "registry_id" {
-  value = yandex_container_registry.default.id
-}
-
-output "dns_zone_id" {
-  value = yandex_dns_zone.public.id
 }
