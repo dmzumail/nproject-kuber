@@ -46,12 +46,12 @@ resource "yandex_container_registry" "default" {
   name = "cr-nproject-site"
 }
 
-# Kubernetes Cluster (версия 1.29 + явные CIDR как аргументы)
+# Kubernetes Cluster (версия 1.29 + ПРАВИЛЬНЫЕ аргументы CIDR)
 resource "yandex_kubernetes_cluster" "k8s" {
-  name                    = "k8s-nproject-site"
-  network_id              = yandex_vpc_network.default.id
-  cluster_ipv4_cidr_block = "10.244.0.0/16" # для Pod'ов
-  service_ipv4_cidr_block = "10.96.0.0/16"  # для Service'ов
+  name               = "k8s-nproject-site"
+  network_id         = yandex_vpc_network.default.id
+  cluster_ipv4_range = "10.244.0.0/16" # ← правильно: _range
+  service_ipv4_range = "10.96.0.0/16"  # ← правильно: _range
 
   master {
     version = "1.29"
