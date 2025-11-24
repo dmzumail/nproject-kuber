@@ -38,7 +38,7 @@ resource "yandex_container_registry" "default" {
 
 # Kubernetes Cluster (используем поддерживаемую версию 1.30)
 resource "yandex_kubernetes_cluster" "k8s" {
-  name               = "k8s-nproject-site"
+  name               = "k8s-nproject-site-v2"
   network_id         = yandex_vpc_network.default.id
   cluster_ipv4_range = "10.244.0.0/16" # CIDR для Pod'ов
   service_ipv4_range = "10.96.0.0/16"  # CIDR для Service'ов
@@ -60,7 +60,7 @@ resource "yandex_kubernetes_cluster" "k8s" {
 # Node Group
 resource "yandex_kubernetes_node_group" "k8s_nodes" {
   cluster_id = yandex_kubernetes_cluster.k8s.id
-  name       = "ng-nproject-site"
+  name       = "ng-nproject-site-v2"
   version    = "1.30" # ← та же версия
 
   instance_template {
