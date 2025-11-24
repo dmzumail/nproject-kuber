@@ -24,10 +24,11 @@ resource "yandex_iam_service_account" "k8s_sa" {
   description = "Service account for Kubernetes cluster and node group"
 }
 
-# Минимально необходимые IAM-роли
+# Необходимые IAM-роли (включая k8s.clusters.create!)
 resource "yandex_resourcemanager_folder_iam_member" "k8s_roles" {
   for_each = toset([
-    "k8s.clusters.agent",
+    "k8s.clusters.create", # ← обязательно для создания кластера
+    "k8s.clusters.agent",  # ← для управления нодами
     "vpc.admin",
     "load-balancer.admin",
     "container-registry.images.puller",
@@ -46,12 +47,12 @@ resource "yandex_container_registry" "default" {
   name = "cr-nproject-site"
 }
 
-# Kubernetes Cluster (версия 1.29 + ПРАВИЛЬНЫЕ аргументы CIDR)
+# Kubernetes Cluster
 resource "yandex_kubernetes_cluster" "k8s" {
   name               = "k8s-nproject-site"
   network_id         = yandex_vpc_network.default.id
-  cluster_ipv4_range = "10.244.0.0/16" # ← правильно: _range
-  service_ipv4_range = "10.96.0.0/16"  # ← правильно: _range
+  cluster_ipv4_range = "10.244.0.0/16" # для Pod'ов
+  service_ipv4_range = "10.96.0.0/16"  # для Service'ов
 
   master {
     version = "1.29"
