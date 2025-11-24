@@ -30,7 +30,7 @@ resource "yandex_resourcemanager_folder_iam_member" "k8s_roles" {
     "container-registry.images.puller",
     "load-balancer.admin",
     "certificate-manager.certificates.user", # ✅ исправлено
-    "vpc.admin",                                # ✅ исправлено
+    "vpc.admin",                             # ✅ исправлено
     "editor"
   ])
   folder_id = var.yc_folder_id
