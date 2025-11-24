@@ -18,27 +18,16 @@ resource "yandex_vpc_subnet" "default" {
   v4_cidr_blocks = ["192.168.10.0/24"]
 }
 
-# IAM Service Account для Kubernetes
+# IAM Service Account
 resource "yandex_iam_service_account" "k8s_sa" {
   name        = "sa-k8s-nproject-site"
-  description = "Service account for Kubernetes cluster and node group"
+  description = "Service account for Kubernetes cluster"
 }
 
-# Необходимые IAM-роли (включая k8s.clusters.create!)
-resource "yandex_resourcemanager_folder_iam_member" "k8s_roles" {
-  for_each = toset([
-    "k8s.clusters.create", # ← обязательно для создания кластера
-    "k8s.clusters.agent",  # ← для управления нодами
-    "vpc.admin",
-    "load-balancer.admin",
-    "container-registry.images.puller",
-    "compute.viewer",
-    "iam.serviceAccounts.user"
-    # "certificate-manager.certificates.user" ← раскомментировать позже, если нужен HTTPS
-  ])
-
+# Просто назначаем editor — это работает
+resource "yandex_resourcemanager_folder_iam_member" "k8s_sa_editor" {
   folder_id = var.yc_folder_id
-  role      = each.value
+  role      = "editor"
   member    = "serviceAccount:${yandex_iam_service_account.k8s_sa.id}"
 }
 
@@ -51,8 +40,8 @@ resource "yandex_container_registry" "default" {
 resource "yandex_kubernetes_cluster" "k8s" {
   name               = "k8s-nproject-site"
   network_id         = yandex_vpc_network.default.id
-  cluster_ipv4_range = "10.244.0.0/16" # для Pod'ов
-  service_ipv4_range = "10.96.0.0/16"  # для Service'ов
+  cluster_ipv4_range = "10.244.0.0/16"
+  service_ipv4_range = "10.96.0.0/16"
 
   master {
     version = "1.29"
@@ -76,7 +65,7 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
 
   instance_template {
     platform_id = "standard-v3"
-    nat         = true # даёт исходящий интернет
+    nat         = true
 
     resources {
       memory = 2
