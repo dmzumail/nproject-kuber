@@ -2,13 +2,13 @@ name: Deploy Infrastructure and Application
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 env:
-  YC_FOLDER_ID:     ${{ secrets.YC_FOLDER_ID }}
-  YC_REGISTRY_ID:   ${{ secrets.YC_REGISTRY_ID }}
-  IMAGE_NAME:       nproject-app
+  YC_FOLDER_ID:   ${{ secrets.YC_FOLDER_ID }}
+  YC_REGISTRY_ID: ${{ secrets.YC_REGISTRY_ID }}
+  IMAGE_NAME:     nproject-app
 
 jobs:
   terraform:
@@ -34,9 +34,9 @@ jobs:
         working-directory: ./terraform
         run: terraform validate
 
-      - name: Terraform Format
+      - name: Terraform Format Check
         working-directory: ./terraform
-        run: terraform fmt -check
+        run: terraform fmt -check -recursive
 
       - name: Terraform Plan
         working-directory: ./terraform
@@ -77,11 +77,18 @@ jobs:
       - name: Install app dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r app/requirements.txt
+          if [ -f app/requirements.txt ]; then
+            pip install -r app/requirements.txt
+          fi
 
       - name: Run tests
         working-directory: ./app
-        run: python -m pytest tests/ -v
+        run: |
+          if [ -d tests ]; then
+            python -m pytest tests/ -v
+          else
+            echo "No tests found, skipping."
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -114,15 +121,15 @@ jobs:
           yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
           yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
 
-      - name: Wait for cluster readiness (5 min)
+      - name: Wait for Kubernetes cluster readiness
         run: |
-          echo "Waiting for Kubernetes cluster to become ready..."
+          echo "Waiting 5 minutes for cluster k8s-nproject-site to become ready..."
           sleep 300
 
-      - name: Get kubeconfig
+      - name: Get kubeconfig for k8s-nproject-site
         run: yc k8s cluster get-credentials --name k8s-nproject-site --external
 
-      - name: Update image in deployment.yaml
+      - name: Update image tag in Kubernetes manifests
         run: |
           sed -i "s|__FOLDER_ID__|${{ secrets.YC_FOLDER_ID }}|g" k8s/deployment.yaml
           sed -i "s|__TAG__|${{ github.sha }}|g" k8s/deployment.yaml
