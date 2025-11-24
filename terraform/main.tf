@@ -29,7 +29,7 @@ resource "yandex_resourcemanager_folder_iam_member" "k8s_roles" {
     "k8s.clusters.agent",
     "container-registry.images.puller",
     "load-balancer.admin",
-    "certificate-manager.certificates.manager", # ✅ исправлено
+    "certificate-manager.certificates.user", # ✅ исправлено
     "vpc.admin",                                # ✅ исправлено
     "editor"
   ])
