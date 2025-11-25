@@ -94,16 +94,16 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
 
 resource "yandex_dns_recordset" "site" {
   zone_id = yandex_dns_zone.public.id
-  name    = "${var.domain}."  # например, "nproject.site."
+  name    = "${var.domain}."
   type    = "A"
   ttl     = 300
-  records = [var.external_ip]
+  data    = var.external_ip # ← строка, не список!
 }
 
 resource "yandex_dns_recordset" "www" {
   zone_id = yandex_dns_zone.public.id
-  name    = "www.${var.domain}."  # например, "www.nproject.site."
+  name    = "www.${var.domain}."
   type    = "A"
   ttl     = 300
-  records = [var.external_ip]
+  data    = var.external_ip # ← строка, не список!
 }
