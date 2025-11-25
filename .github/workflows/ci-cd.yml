@@ -6,9 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  YC_FOLDER_ID:   ${{ secrets.YC_FOLDER_ID }}
-  YC_REGISTRY_ID: ${{ secrets.YC_REGISTRY_ID }}
-  IMAGE_NAME:     nproject-app
+  YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+  IMAGE_NAME:   nproject-app
 
 jobs:
   terraform:
@@ -61,6 +60,11 @@ jobs:
           AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
 
+      - name: Read Terraform Outputs
+        working-directory: ./terraform
+        run: |
+          echo "YC_REGISTRY_ID=$(terraform output -raw registry_id)" >> $GITHUB_ENV
+
   deploy:
     name: Deploy Application to Kubernetes
     needs: terraform
@@ -105,6 +109,7 @@ jobs:
           IMAGE_TAG=cr.yandex/${{ env.YC_REGISTRY_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker buildx build \
             --push \
+            --platform=linux/amd64 \
             --tag "$IMAGE_TAG" \
             --file ./app/Dockerfile \
             ./app
@@ -123,7 +128,7 @@ jobs:
 
       - name: Wait for Kubernetes cluster readiness
         run: |
-          echo "Waiting 5 minutes for cluster k8s-nproject-site-v2 to become ready..."
+          echo "Waiting 10 minutes for cluster k8s-nproject-site-v2 to become ready..."
           sleep 600
 
       - name: Get kubeconfig for k8s-nproject-site-v2
@@ -136,3 +141,39 @@ jobs:
 
       - name: Apply Kubernetes manifests
         run: kubectl apply -f k8s/
+
+      - name: Get LoadBalancer IP
+        id: get_ip
+        run: |
+          echo "Waiting for LoadBalancer IP..."
+          for i in {1..10}; do
+            IP=$(kubectl get svc nproject-app-svc -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null)
+            if [ -n "$IP" ]; then
+              echo "Found IP: $IP"
+              echo "external_ip=$IP" >> $GITHUB_ENV
+              exit 0
+            fi
+            echo "IP not ready, retrying in 30s... ($i/10)"
+            sleep 30
+          done
+          echo "Timeout: LoadBalancer IP not found"
+          exit 1
+
+      - name: Terraform Init (for DNS)
+        working-directory: ./terraform
+        run: terraform init -reconfigure
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
+
+      - name: Terraform Apply DNS Records
+        working-directory: ./terraform
+        run: terraform apply -auto-approve -input=false
+        env:
+          TF_VAR_domain: "nproject.site"
+          TF_VAR_yc_token: ${{ secrets.YC_TOKEN }}
+          TF_VAR_yc_cloud_id: ${{ secrets.YC_CLOUD_ID }}
+          TF_VAR_yc_folder_id: ${{ secrets.YC_FOLDER_ID }}
+          TF_VAR_external_ip: ${{ env.external_ip }}
+          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}

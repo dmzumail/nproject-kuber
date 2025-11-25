@@ -23,3 +23,10 @@ variable "ssh_public_key" {
   type        = string
   default     = ""
 }
+
+# Новая переменная для внешнего IP LoadBalancer
+variable "external_ip" {
+  description = "Внешний IP-адрес LoadBalancer сервиса"
+  type        = string
+  default     = ""
+}

@@ -91,3 +91,21 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
     }
   }
 }
+
+# A-запись для корня домена
+resource "yandex_dns_record" "site" {
+  zone_id = yandex_dns_zone.public.id
+  name    = "${var.domain}."  # например, "nproject.site."
+  type    = "A"
+  ttl     = 300
+  data    = [var.external_ip]
+}
+
+# A-запись для www
+resource "yandex_dns_record" "www" {
+  zone_id = yandex_dns_zone.public.id
+  name    = "www.${var.domain}."  # например, "www.nproject.site."
+  type    = "A"
+  ttl     = 300
+  data    = [var.external_ip]
+}
