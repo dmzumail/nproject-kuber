@@ -97,7 +97,7 @@ resource "yandex_dns_recordset" "site" {
   name    = "${var.domain}."
   type    = "A"
   ttl     = 300
-  data    = var.external_ip # ← строка, не список!
+  data    = [var.external_ip]
 }
 
 resource "yandex_dns_recordset" "www" {
@@ -105,5 +105,5 @@ resource "yandex_dns_recordset" "www" {
   name    = "www.${var.domain}."
   type    = "A"
   ttl     = 300
-  data    = var.external_ip # ← строка, не список!
+  data    = [var.external_ip]
 }
