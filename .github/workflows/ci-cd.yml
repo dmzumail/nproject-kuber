@@ -49,7 +49,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
 
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         working-directory: ./terraform
         run: terraform apply -auto-approve -input=false
         env:
@@ -60,13 +60,13 @@ jobs:
           AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
 
-      # ✅ ИСПРАВЛЕНО: читаем output ТОЛЬКО ПОСЛЕ apply
       - name: Read Terraform Outputs
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         working-directory: ./terraform
         run: |
           REGISTRY_ID=$(terraform output -raw registry_id 2>/dev/null || echo "")
           if [ -z "$REGISTRY_ID" ]; then
-            echo "Error: registry_id output is empty or not found"
+            echo "Error: YC_REGISTRY_ID is empty"
             exit 1
           fi
           echo "YC_REGISTRY_ID=$REGISTRY_ID" >> $GITHUB_ENV
@@ -115,6 +115,10 @@ jobs:
 
       - name: Build and push Docker image
         run: |
+          if [ -z "${{ env.YC_REGISTRY_ID }}" ]; then
+            echo "Error: YC_REGISTRY_ID is not set"
+            exit 1
+          fi
           IMAGE_TAG=cr.yandex/${{ env.YC_REGISTRY_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker buildx build \
             --push \
@@ -135,13 +139,20 @@ jobs:
           yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
           yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
 
-      - name: Wait for Kubernetes cluster readiness
+      - name: Wait for Kubernetes cluster and get kubeconfig
         run: |
-          echo "Waiting 10 minutes for cluster k8s-nproject-site-v2 to become ready..."
-          sleep 600
-
-      - name: Get kubeconfig for k8s-nproject-site-v2
-        run: yc k8s cluster get-credentials --name k8s-nproject-site-v2 --external
+          echo "Waiting for cluster k8s-nproject-site-v2 to become ready..."
+          for i in {1..30}; do
+            if yc k8s cluster get k8s-nproject-site-v2 --format json > /dev/null 2>&1; then
+              echo "Cluster is ready"
+              yc k8s cluster get-credentials --name k8s-nproject-site-v2 --external
+              exit 0
+            fi
+            echo "Cluster not ready, retrying in 20s... ($i/30)"
+            sleep 20
+          done
+          echo "Timeout: cluster was not created within 10 minutes"
+          exit 1
 
       - name: Update image tag in Kubernetes manifests
         run: |
@@ -167,6 +178,13 @@ jobs:
           done
           echo "Timeout: LoadBalancer IP not found"
           exit 1
+
+      - name: Enable automatic scanning for Container Registry
+        run: yc container registry scan enable --id ${{ env.YC_REGISTRY_ID }}
+        env:
+          YC_TOKEN: ${{ secrets.YC_TOKEN }}
+          YC_CLOUD_ID: ${{ secrets.YC_CLOUD_ID }}
+          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
 
       - name: Terraform Init (for DNS)
         working-directory: ./terraform
