@@ -66,10 +66,9 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
   instance_template {
     platform_id = "standard-v3"
 
-    # Обязательно: network_interface → subnet_ids
     network_interface {
       nat        = true
-      subnet_ids = [yandex_vpc_subnet.default.id] # ← ЕДИНСТВЕННЫЙ источник подсети
+      subnet_ids = [yandex_vpc_subnet.default.id]
     }
 
     resources {
@@ -79,7 +78,7 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
 
     boot_disk {
       type = "network-hdd"
-      size = 30 # ← минимум 30 ГБ для Yandex Cloud
+      size = 30
     }
   }
 
@@ -92,19 +91,19 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
   allocation_policy {
     location {
       zone = "ru-central1-a"
-      # subnet_id УДАЛЁН — он задаётся в network_interface
+      # subnet_id УДАЛЁН — задаётся в network_interface
     }
   }
 }
 
-# A-записи (создаются только когда external_ip известен)
+# A-записи (условное создание)
 resource "yandex_dns_recordset" "site" {
   count   = var.external_ip != "" ? 1 : 0
   zone_id = yandex_dns_zone.public.id
   name    = "${var.domain}."
   type    = "A"
   ttl     = 300
-  data    = [var.external_ip] # ← data, НЕ records; список, НЕ строка
+  data    = [var.external_ip]
 }
 
 resource "yandex_dns_recordset" "www" {
@@ -113,5 +112,5 @@ resource "yandex_dns_recordset" "www" {
   name    = "www.${var.domain}."
   type    = "A"
   ttl     = 300
-  data    = [var.external_ip] # ← data, НЕ records
+  data    = [var.external_ip]
 }

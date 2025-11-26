@@ -64,12 +64,16 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         working-directory: ./terraform
         run: |
-          REGISTRY_ID=$(terraform output -raw registry_id 2>/dev/null || echo "")
-          if [ -z "$REGISTRY_ID" ]; then
-            echo "Error: registry_id output is empty"
+          # Подавляем предупреждения и получаем ТОЛЬКО значение
+          REGISTRY_ID=$(terraform output -raw registry_id 2>&1 | grep -v "Warning" | tail -n1)
+          if [ -z "$REGISTRY_ID" ] || [[ "$REGISTRY_ID" == *"Warning"* ]]; then
+            echo "Error: Failed to get registry_id"
             exit 1
           fi
           echo "registry_id=$REGISTRY_ID" >> $GITHUB_OUTPUT
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
         id: outputs
 
   deploy:
@@ -144,17 +148,15 @@ jobs:
 
       - name: Wait for Kubernetes cluster and get kubeconfig
         run: |
-          echo "Waiting for cluster k8s-nproject-site-v2 to become ready..."
           for i in {1..30}; do
             if yc k8s cluster get k8s-nproject-site-v2 --format json > /dev/null 2>&1; then
-              echo "Cluster is ready"
               yc k8s cluster get-credentials --name k8s-nproject-site-v2 --external
               exit 0
             fi
             echo "Cluster not ready, retrying in 20s... ($i/30)"
             sleep 20
           done
-          echo "Timeout: cluster was not created within 10 minutes"
+          echo "Timeout: cluster was not created"
           exit 1
 
       - name: Update image tag in Kubernetes manifests
@@ -166,17 +168,13 @@ jobs:
         run: kubectl apply -f k8s/
 
       - name: Get LoadBalancer IP
-        id: get_ip
         run: |
-          echo "Waiting for LoadBalancer IP..."
           for i in {1..10}; do
             IP=$(kubectl get svc nproject-app-svc -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null)
             if [ -n "$IP" ]; then
-              echo "Found IP: $IP"
               echo "external_ip=$IP" >> $GITHUB_ENV
               exit 0
             fi
-            echo "IP not ready, retrying in 30s... ($i/10)"
             sleep 30
           done
           echo "Timeout: LoadBalancer IP not found"
