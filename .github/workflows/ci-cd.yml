@@ -204,6 +204,3 @@ jobs:
           TF_VAR_external_ip: ${{ env.external_ip }}
           AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
-
-      - name: Enable automatic scanning for Container Registry
-        run: yc container registry scan enable --id ${{ env.YC_REGISTRY_ID }}
