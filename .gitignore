@@ -1,0 +1,22 @@
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+*.tfplan
+crash.log
+
+# Исключаем только секретные tfvars, но не example
+terraform.tfvars
+# Шаблон для других секретов
+# prod.tfvars
+# staging.tfvars
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
