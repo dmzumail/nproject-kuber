@@ -38,10 +38,10 @@ resource "yandex_container_registry" "default" {
 
 # Kubernetes Cluster
 resource "yandex_kubernetes_cluster" "k8s" {
-  name               = "k8s-nproject-site-v2"
-  network_id         = yandex_vpc_network.default.id
-  cluster_ipv4_range = "10.244.0.0/16"
-  service_ipv4_range = "10.96.0.0/16"
+  name                 = "k8s-nproject-site-v2"
+  network_id           = yandex_vpc_network.default.id
+  cluster_ipv4_range   = "10.244.0.0/16"
+  service_ipv4_range   = "10.96.0.0/16"
 
   master {
     version = "1.30"
@@ -65,9 +65,11 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
 
   instance_template {
     platform_id = "standard-v3"
+
+    # Обязательно: network_interface → subnet_ids
     network_interface {
       nat        = true
-      subnet_ids = [yandex_vpc_subnet.default.id]
+      subnet_ids = [yandex_vpc_subnet.default.id]  # ← ЕДИНСТВЕННЫЙ источник подсети
     }
 
     resources {
@@ -77,7 +79,7 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
 
     boot_disk {
       type = "network-hdd"
-      size = 30
+      size = 30  # ← минимум 30 ГБ для Yandex Cloud
     }
   }
 
@@ -89,20 +91,20 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
 
   allocation_policy {
     location {
-      zone      = "ru-central1-a"
-      subnet_id = yandex_vpc_subnet.default.id
+      zone = "ru-central1-a"
+      # subnet_id УДАЛЁН — он задаётся в network_interface
     }
   }
 }
 
-# A-записи (создаются позже, когда external_ip известен)
+# A-записи (создаются только когда external_ip известен)
 resource "yandex_dns_recordset" "site" {
   count   = var.external_ip != "" ? 1 : 0
   zone_id = yandex_dns_zone.public.id
   name    = "${var.domain}."
   type    = "A"
   ttl     = 300
-  data    = [var.external_ip]
+  data    = [var.external_ip]  # ← data, НЕ records; список, НЕ строка
 }
 
 resource "yandex_dns_recordset" "www" {
@@ -111,5 +113,5 @@ resource "yandex_dns_recordset" "www" {
   name    = "www.${var.domain}."
   type    = "A"
   ttl     = 300
-  data    = [var.external_ip]
+  data    = [var.external_ip]  # ← data, НЕ records
 }
