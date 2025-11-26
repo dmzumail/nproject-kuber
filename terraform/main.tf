@@ -24,7 +24,7 @@ resource "yandex_iam_service_account" "k8s_sa" {
   description = "Service account for Kubernetes cluster"
 }
 
-# Роль editor на папку (для управления ресурсами)
+# Роль editor на папку (для управления всеми ресурсами)
 resource "yandex_resourcemanager_folder_iam_member" "k8s_sa_editor" {
   folder_id = var.yc_folder_id
   role      = "editor"
@@ -36,11 +36,11 @@ resource "yandex_container_registry" "default" {
   name = "cr-nproject-site"
 }
 
-# КРИТИЧЕСКИ ВАЖНО: даём кластеру право читать образы из реестра
-resource "yandex_container_registry_iam_member" "k8s_sa_reader" {
-  registry_id = yandex_container_registry.default.id
-  role        = "container-registry.reader"
-  member      = "serviceAccount:${yandex_iam_service_account.k8s_sa.id}"
+# 👇 РАБОЧЕЕ РЕШЕНИЕ: даём доступ к реестру через папковую IAM-роль
+resource "yandex_resourcemanager_folder_iam_member" "k8s_sa_registry_reader" {
+  folder_id = var.yc_folder_id
+  role      = "container-registry.reader"
+  member    = "serviceAccount:${yandex_iam_service_account.k8s_sa.id}"
 }
 
 # Kubernetes Cluster
@@ -102,7 +102,7 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
   }
 }
 
-# A-записи (условное создание после получения external_ip)
+# A-записи (создаются только если external_ip задан)
 resource "yandex_dns_recordset" "site" {
   count   = var.external_ip != "" ? 1 : 0
   zone_id = yandex_dns_zone.public.id

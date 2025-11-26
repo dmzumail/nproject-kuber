@@ -13,6 +13,6 @@ terraform {
     skip_region_validation      = true
     skip_requesting_account_id  = true
     skip_s3_checksum            = true # ← критически важно для Terraform ≥1.6
-    force_path_style            = true # ← работает надёжнее для Yandex (Warning можно игнорировать)
+    use_path_style              = true # ← работает надёжнее для Yandex (Warning можно игнорировать)
   }
 }
