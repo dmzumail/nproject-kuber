@@ -66,7 +66,8 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
   instance_template {
     platform_id = "standard-v3"
     network_interface {
-      nat = true
+      nat        = true
+      subnet_ids = [yandex_vpc_subnet.default.id]
     }
 
     resources {
@@ -101,7 +102,7 @@ resource "yandex_dns_recordset" "site" {
   name    = "${var.domain}."
   type    = "A"
   ttl     = 300
-  records = [var.external_ip] # ← ИСПРАВЛЕНО: data → records
+  data    = [var.external_ip]
 }
 
 resource "yandex_dns_recordset" "www" {
@@ -110,5 +111,5 @@ resource "yandex_dns_recordset" "www" {
   name    = "www.${var.domain}."
   type    = "A"
   ttl     = 300
-  records = [var.external_ip] # ← ИСПРАВЛЕНО: data → records
+  data    = [var.external_ip]
 }
