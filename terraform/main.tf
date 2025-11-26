@@ -1,18 +1,3 @@
-terraform {
-  required_providers {
-    yandex = {
-      source  = "yandex-cloud/yandex"
-      version = "~> 0.95"
-    }
-  }
-}
-
-provider "yandex" {
-  token     = var.yc_token
-  cloud_id  = var.yc_cloud_id
-  folder_id = var.yc_folder_id
-}
-
 # DNS-зона
 resource "yandex_dns_zone" "public" {
   name        = "zone-nproject-site"
