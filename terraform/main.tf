@@ -38,10 +38,10 @@ resource "yandex_container_registry" "default" {
 
 # Kubernetes Cluster
 resource "yandex_kubernetes_cluster" "k8s" {
-  name                 = "k8s-nproject-site-v2"
-  network_id           = yandex_vpc_network.default.id
-  cluster_ipv4_range   = "10.244.0.0/16"
-  service_ipv4_range   = "10.96.0.0/16"
+  name               = "k8s-nproject-site-v2"
+  network_id         = yandex_vpc_network.default.id
+  cluster_ipv4_range = "10.244.0.0/16"
+  service_ipv4_range = "10.96.0.0/16"
 
   master {
     version = "1.30"
