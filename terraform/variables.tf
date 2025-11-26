@@ -16,17 +16,17 @@ variable "yc_folder_id" {
 variable "domain" {
   description = "Your domain name, e.g. example.com"
   type        = string
+  default     = "nproject.site"
 }
 
-variable "ssh_public_key" {
-  description = "Public SSH key for VM access (optional)"
+variable "external_ip" {
+  description = "Внешний IP-адрес LoadBalancer сервиса"
   type        = string
   default     = ""
 }
 
-# Новая переменная для внешнего IP LoadBalancer
-variable "external_ip" {
-  description = "Внешний IP-адрес LoadBalancer сервиса"
+variable "ssh_public_key" {
+  description = "Public SSH key for VM access (optional)"
   type        = string
   default     = ""
 }

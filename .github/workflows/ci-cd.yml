@@ -69,15 +69,21 @@ jobs:
             echo "Error: YC_REGISTRY_ID is empty"
             exit 1
           fi
-          echo "YC_REGISTRY_ID=$REGISTRY_ID" >> $GITHUB_ENV
+          echo "registry_id=$REGISTRY_ID" >> $GITHUB_OUTPUT
         env:
           AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
+        id: outputs
 
   deploy:
     name: Deploy Application to Kubernetes
     needs: terraform
     runs-on: ubuntu-latest
+    env:
+      YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+      IMAGE_NAME:   nproject-app
+      YC_REGISTRY_ID: ${{ needs.terraform.outputs.registry_id }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
