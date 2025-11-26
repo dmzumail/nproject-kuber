@@ -66,13 +66,10 @@ jobs:
         run: |
           REGISTRY_ID=$(terraform output -raw registry_id 2>/dev/null || echo "")
           if [ -z "$REGISTRY_ID" ]; then
-            echo "Error: YC_REGISTRY_ID is empty"
+            echo "Error: registry_id output is empty"
             exit 1
           fi
           echo "registry_id=$REGISTRY_ID" >> $GITHUB_OUTPUT
-        env:
-          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
         id: outputs
 
   deploy:
@@ -81,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
-      IMAGE_NAME:   nproject-app
+      IMAGE_NAME: nproject-app
       YC_REGISTRY_ID: ${{ needs.terraform.outputs.registry_id }}
 
     steps:
