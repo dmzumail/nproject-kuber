@@ -60,10 +60,16 @@ jobs:
           AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
 
+      # ✅ ИСПРАВЛЕНО: читаем output ТОЛЬКО ПОСЛЕ apply
       - name: Read Terraform Outputs
         working-directory: ./terraform
         run: |
-          echo "YC_REGISTRY_ID=$(terraform output -raw registry_id)" >> $GITHUB_ENV
+          REGISTRY_ID=$(terraform output -raw registry_id 2>/dev/null || echo "")
+          if [ -z "$REGISTRY_ID" ]; then
+            echo "Error: registry_id output is empty or not found"
+            exit 1
+          fi
+          echo "YC_REGISTRY_ID=$REGISTRY_ID" >> $GITHUB_ENV
         env:
           AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
