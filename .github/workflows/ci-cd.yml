@@ -1,9 +1,20 @@
+name: Deploy Infrastructure and Application
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+env:
+  YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+  IMAGE_NAME: nproject-app
+
 jobs:
   terraform:
     name: Provision Infrastructure
     runs-on: ubuntu-latest
     outputs:
-      registry_id: ${{ steps.outputs.outputs.registry_id }}
+      registry_id: ${{ steps.outputs.outputs.registry_id }}  # ← объявляем output job'а
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,36 +64,18 @@ jobs:
 
       - name: Read Terraform Outputs
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        id: outputs  # ← этот ID нужен для ссылки в outputs.job
         working-directory: ./terraform
         run: |
-          # Инициализируем переменную
-          REGISTRY_ID=""
-          
-          # Пытаемся получить registry_id несколькими способами
-          if REGISTRY_ID=$(terraform output -raw registry_id 2>/dev/null); then
-            echo "Successfully got registry_id: $REGISTRY_ID"
-          else
-            # Альтернативный способ через state
-            REGISTRY_ID=$(terraform show -json | jq -r '.values.outputs.registry_id.value // empty')
-            if [ -n "$REGISTRY_ID" ]; then
-              echo "Successfully got registry_id from state: $REGISTRY_ID"
-            else
-              echo "Error: Failed to get registry_id from terraform outputs"
-              exit 1
-            fi
-          fi
-          
-          # Проверяем что значение не пустое
+          REGISTRY_ID=$(terraform output -raw registry_id 2>/dev/null)
           if [ -z "$REGISTRY_ID" ]; then
-            echo "Error: registry_id is empty"
+            echo "Error: registry_id is empty or not defined"
             exit 1
           fi
-          
-          echo "registry_id=$REGISTRY_ID" >> $GITHUB_OUTPUT
+          echo "registry_id=$REGISTRY_ID" >> "$GITHUB_OUTPUT"
         env:
           AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
-        id: outputs
 
   deploy:
     name: Deploy Application to Kubernetes
@@ -91,15 +84,11 @@ jobs:
     env:
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
       IMAGE_NAME: nproject-app
+      YC_REGISTRY_ID: ${{ needs.terraform.outputs.registry_id }}  # ← корректно берётся
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Debug outputs
-        run: |
-          echo "Terraform outputs: ${{ toJson(needs.terraform.outputs) }}"
-          echo "Registry ID: ${{ needs.terraform.outputs.registry_id }}"
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -134,18 +123,11 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          REGISTRY_ID="${{ needs.terraform.outputs.registry_id }}"
-          echo "Using registry ID: $REGISTRY_ID"
-          
-          if [ -z "$REGISTRY_ID" ]; then
-            echo "❌ Error: YC_REGISTRY_ID is not set"
-            echo "Available outputs: ${{ toJson(needs.terraform.outputs) }}"
+          if [ -z "${{ env.YC_REGISTRY_ID }}" ]; then
+            echo "Error: YC_REGISTRY_ID is not set"
             exit 1
           fi
-          
-          IMAGE_TAG=cr.yandex/$REGISTRY_ID/$IMAGE_NAME:${{ github.sha }}
-          echo "Building and pushing image: $IMAGE_TAG"
-          
+          IMAGE_TAG="cr.yandex/${{ env.YC_REGISTRY_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
           docker buildx build \
             --push \
             --platform=linux/amd64 \
@@ -154,10 +136,9 @@ jobs:
             ./app
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
-      # Остальные шаги остаются без изменений...
       - name: Install Yandex Cloud CLI
         run: |
-          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -n -a
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -n
           echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
 
       - name: Configure YC CLI
@@ -181,10 +162,8 @@ jobs:
 
       - name: Update image tag in Kubernetes manifests
         run: |
-          # Используем правильный registry_id
-          REGISTRY_ID="${{ needs.terraform.outputs.registry_id }}"
-          sed -i "s|__FOLDER_ID__|$REGISTRY_ID|g" k8s/deployment.yaml
-          sed -i "s|__TAG__|${{ github.sha }}|g" k8s/deployment.yaml"
+          sed -i "s|__FOLDER_ID__|${{ secrets.YC_FOLDER_ID }}|g" k8s/deployment.yaml
+          sed -i "s|__TAG__|${{ github.sha }}|g" k8s/deployment.yaml
 
       - name: Apply Kubernetes manifests
         run: kubectl apply -f k8s/
@@ -202,16 +181,7 @@ jobs:
           echo "Timeout: LoadBalancer IP not found"
           exit 1
 
-      - name: Enable automatic scanning for Container Registry
-        run: |
-          REGISTRY_ID="${{ needs.terraform.outputs.registry_id }}"
-          yc container registry scan enable --id "$REGISTRY_ID"
-        env:
-          YC_TOKEN: ${{ secrets.YC_TOKEN }}
-          YC_CLOUD_ID: ${{ secrets.YC_CLOUD_ID }}
-          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
-
-      - name: Terraform Init (for DNS)
+      - name: Terraform Init (for DNS update)
         working-directory: ./terraform
         run: terraform init -reconfigure
         env:
@@ -229,3 +199,6 @@ jobs:
           TF_VAR_external_ip: ${{ env.external_ip }}
           AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
+
+      - name: Enable automatic scanning for Container Registry
+        run: yc container registry scan enable --id ${{ env.YC_REGISTRY_ID }}
