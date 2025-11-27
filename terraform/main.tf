@@ -36,7 +36,7 @@ resource "yandex_container_registry" "default" {
   name = "cr-nproject-site"
 }
 
-# РАБОЧЕЕ РЕШЕНИЕ: даём доступ к реестру через папковую IAM-роль
+# РАБОЧЕЕ РЕШЕНИЕ: даём полный доступ к реестру через папковую IAM-роль
 resource "yandex_resourcemanager_folder_iam_member" "k8s_sa_registry_reader" {
   folder_id = var.yc_folder_id
   role      = "container-registry.admin"
@@ -62,6 +62,12 @@ resource "yandex_kubernetes_cluster" "k8s" {
   service_account_id       = yandex_iam_service_account.k8s_sa.id
   node_service_account_id  = yandex_iam_service_account.k8s_sa.id
   node_ipv4_cidr_mask_size = 24
+
+  # Гарантирует, что IAM-биндинги созданы ДО кластера
+  depends_on = [
+    yandex_resourcemanager_folder_iam_member.k8s_sa_editor,
+    yandex_resourcemanager_folder_iam_member.k8s_sa_registry_reader
+  ]
 }
 
 # Node Group
