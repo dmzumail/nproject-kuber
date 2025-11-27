@@ -1,22 +1,98 @@
+# ======================
 # Terraform
+# ======================
+
+# State & plan files (никогда не коммитим)
 *.tfstate
 *.tfstate.backup
-.terraform/
+*.tfstate.lock.info
 *.tfplan
 crash.log
 
-# Исключаем только секретные tfvars, но не example
-terraform.tfvars
-# Шаблон для других секретов
-# prod.tfvars
-# staging.tfvars
+# Local provider/plugins cache
+.terraform/
 
-# IDE
+# Переменные (секреты)
+terraform.tfvars
+*.tfvars
+!example.tfvars  # разрешаем example-файлы (если есть)
+
+# Lock-файл — НЕ игнорируем! Он должен быть в репозитории.
+# .terraform.lock.hcl
+
+# ======================
+# Python (app/)
+# ======================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+ENV/
+.env
+.venv
+
+# Distribution / packaging
+.dist/
+build/
+develop-eggs/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints
+
+# ======================
+# Docker
+# ======================
+
+.dockerignore
+
+# ======================
+# IDE / Editors
+# ======================
+
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime-project
+*.sublime-workspace
 
+# ======================
 # OS
+# ======================
+
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+
+# ======================
+# CI/CD & Tools
+# ======================
+
+# Yandex Cloud CLI
+.yc/
+
+# Sentry, logs, etc.
+*.log
