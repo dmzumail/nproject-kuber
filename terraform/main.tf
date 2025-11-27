@@ -39,7 +39,7 @@ resource "yandex_container_registry" "default" {
 # РАБОЧЕЕ РЕШЕНИЕ: даём доступ к реестру через папковую IAM-роль
 resource "yandex_resourcemanager_folder_iam_member" "k8s_sa_registry_reader" {
   folder_id = var.yc_folder_id
-  role      = "containerregistry.images.puller"
+  role      = "container-registry.admin"
   member    = "serviceAccount:${yandex_iam_service_account.k8s_sa.id}"
 }
 
