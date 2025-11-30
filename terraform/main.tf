@@ -125,3 +125,9 @@ resource "yandex_dns_recordset" "www" {
   ttl     = 300
   data    = [var.external_ip]
 }
+
+# Outputs
+output "registry_id" {
+  description = "ID of the Yandex Container Registry"
+  value       = yandex_container_registry.default.id
+}
