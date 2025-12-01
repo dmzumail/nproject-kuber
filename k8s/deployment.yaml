@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: app
-        image: cr.yandex/__FOLDER_ID__/nproject-app:__TAG__
+        image: cr.yandex/__REGISTRY_ID__/nproject-app:__TAG__
         ports:
         - containerPort: 8000
         env:
