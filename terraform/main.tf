@@ -36,7 +36,7 @@ resource "yandex_container_registry" "default" {
   name = "cr-nproject-site"
 }
 
-# РАБОЧЕЕ РЕШЕНИЕ: даём полный доступ к реестру
+# Даём сервисному аккаунту доступ к Container Registry
 resource "yandex_resourcemanager_folder_iam_member" "k8s_sa_registry_reader" {
   folder_id = var.yc_folder_id
   role      = "container-registry.admin"
@@ -107,7 +107,7 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
   }
 }
 
-# A-записи
+# A-записи (обновляются только если передан external_ip)
 resource "yandex_dns_recordset" "site" {
   count   = var.external_ip != "" ? 1 : 0
   zone_id = yandex_dns_zone.public.id
@@ -124,10 +124,4 @@ resource "yandex_dns_recordset" "www" {
   type    = "A"
   ttl     = 300
   data    = [var.external_ip]
-}
-
-# Outputs
-output "registry_id" {
-  description = "ID of the Yandex Container Registry"
-  value       = yandex_container_registry.default.id
 }
