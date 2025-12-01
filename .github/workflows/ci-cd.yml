@@ -114,6 +114,7 @@ jobs:
             python -m pytest tests/ -v
           else
             echo "No tests found, skipping."
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
