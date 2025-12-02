@@ -90,10 +90,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.8.0
+      # ❌ УДАЛЁН ЛИШНИЙ ШАГ: Setup Terraform в deploy не нужен
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
