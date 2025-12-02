@@ -177,6 +177,7 @@ jobs:
           echo "Timeout: LoadBalancer IP not found"
           exit 1
 
+      # 👇 Terraform нужен ТОЛЬКО здесь — для обновления DNS
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
