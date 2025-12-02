@@ -1,9 +1,8 @@
 apiVersion: v1
 kind: Service
-meta
+metadata:
   name: nproject-app-svc
 spec:
-  # УБРАЛИ type: LoadBalancer — теперь будет ClusterIP (по умолчанию)
   selector:
     app: nproject-app
   ports:
