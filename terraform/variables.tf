@@ -19,6 +19,12 @@ variable "domain" {
   default     = "nproject.site"
 }
 
+variable "external_ip" {
+  description = "Внешний IP-адрес LoadBalancer сервиса"
+  type        = string
+  default     = ""
+}
+
 variable "ssh_public_key" {
   description = "Public SSH key for VM access (optional)"
   type        = string

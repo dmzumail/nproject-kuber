@@ -90,6 +90,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.0
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -176,12 +181,6 @@ jobs:
           done
           echo "Timeout: LoadBalancer IP not found"
           exit 1
-
-      # 👇 Terraform нужен ТОЛЬКО здесь — для обновления DNS
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.8.0
 
       - name: Terraform Init (for DNS update)
         working-directory: ./terraform
