@@ -3,6 +3,7 @@ kind: Service
 metadata:
   name: nproject-app-svc
 spec:
+  type: LoadBalancer
   selector:
     app: nproject-app
   ports:
