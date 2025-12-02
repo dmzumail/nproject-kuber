@@ -24,7 +24,7 @@ resource "yandex_iam_service_account" "k8s_sa" {
   description = "Service account for Kubernetes cluster"
 }
 
-# Роль editor на папку
+# Роль editor на папку (для управления всеми ресурсами)
 resource "yandex_resourcemanager_folder_iam_member" "k8s_sa_editor" {
   folder_id = var.yc_folder_id
   role      = "editor"
@@ -36,7 +36,7 @@ resource "yandex_container_registry" "default" {
   name = "cr-nproject-site"
 }
 
-# Доступ к Container Registry
+# Даём сервисному аккаунту доступ к Container Registry
 resource "yandex_resourcemanager_folder_iam_member" "k8s_sa_registry_reader" {
   folder_id = var.yc_folder_id
   role      = "container-registry.admin"
@@ -57,6 +57,11 @@ resource "yandex_kubernetes_cluster" "k8s" {
       subnet_id = yandex_vpc_subnet.default.id
     }
     public_ip = true
+  }
+
+  # 🔑 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: включаем ALB Ingress Controller
+  alb_ingress_controller {
+    enabled = true
   }
 
   service_account_id       = yandex_iam_service_account.k8s_sa.id
@@ -106,6 +111,3 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
     }
   }
 }
-
-# CNAME-записи для Application Load Balancer (будут добавлены ВРУЧНУЮ один раз)
-# Автоматическое управление CNAME через Terraform невозможно, так как FQDN ALB неизвестен заранее.
