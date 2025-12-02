@@ -90,8 +90,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ❌ УДАЛЁН ЛИШНИЙ ШАГ: Setup Terraform в deploy не нужен
-
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -178,6 +176,11 @@ jobs:
           done
           echo "Timeout: LoadBalancer IP not found"
           exit 1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.0
 
       - name: Terraform Init (for DNS update)
         working-directory: ./terraform
