@@ -163,3 +163,40 @@ jobs:
 
       - name: Apply Kubernetes manifests
         run: kubectl apply -f k8s/
+
+      - name: Get LoadBalancer IP
+        run: |
+          for i in {1..10}; do
+            IP=$(kubectl get svc nproject-app-svc -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null)
+            if [ -n "$IP" ]; then
+              echo "external_ip=$IP" >> $GITHUB_ENV
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "Timeout: LoadBalancer IP not found"
+          exit 1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.0
+
+      - name: Terraform Init (for DNS update)
+        working-directory: ./terraform
+        run: terraform init -reconfigure
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
+
+      - name: Terraform Apply DNS Records
+        working-directory: ./terraform
+        run: terraform apply -auto-approve -input=false
+        env:
+          TF_VAR_domain: "nproject.site"
+          TF_VAR_yc_token: ${{ secrets.YC_TOKEN }}
+          TF_VAR_yc_cloud_id: ${{ secrets.YC_CLOUD_ID }}
+          TF_VAR_yc_folder_id: ${{ secrets.YC_FOLDER_ID }}
+          TF_VAR_external_ip: ${{ env.external_ip }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
