@@ -59,11 +59,6 @@ resource "yandex_kubernetes_cluster" "k8s" {
     public_ip = true
   }
 
-  # 🔑 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: включаем ALB Ingress Controller
-  alb_ingress_controller {
-    enabled = true
-  }
-
   service_account_id       = yandex_iam_service_account.k8s_sa.id
   node_service_account_id  = yandex_iam_service_account.k8s_sa.id
   node_ipv4_cidr_mask_size = 24
@@ -110,4 +105,23 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
       zone = "ru-central1-a"
     }
   }
+}
+
+# A-записи (обновляются только если передан external_ip)
+resource "yandex_dns_recordset" "site" {
+  count   = var.external_ip != "" ? 1 : 0
+  zone_id = yandex_dns_zone.public.id
+  name    = "${var.domain}."
+  type    = "A"
+  ttl     = 300
+  data    = [var.external_ip]
+}
+
+resource "yandex_dns_recordset" "www" {
+  count   = var.external_ip != "" ? 1 : 0
+  zone_id = yandex_dns_zone.public.id
+  name    = "www.${var.domain}."
+  type    = "A"
+  ttl     = 300
+  data    = [var.external_ip]
 }
