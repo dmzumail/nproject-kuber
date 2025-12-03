@@ -2,7 +2,10 @@ name: Deploy Infrastructure and Application
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - "**"  # Запускать при пуше в ЛЮБУЮ ветку
+  pull_request:
+    branches: [main]  # Запускать при открытии/обновлении PR в main
   workflow_dispatch:
 
 env:
