@@ -2,7 +2,10 @@ name: Deploy Infrastructure and Application
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - "**"
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -11,7 +14,7 @@ env:
 
 jobs:
   terraform:
-    name: Provision Infrastructure
+    name: Terraform — Plan or Apply
     runs-on: ubuntu-latest
     outputs:
       registry_id: ${{ steps.get-outputs.outputs.registry_id }}
@@ -50,7 +53,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
 
-      - name: Terraform Apply
+      - name: Terraform Apply (only on push / dispatch)
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         working-directory: ./terraform
         run: terraform apply -auto-approve -input=false
@@ -81,6 +84,8 @@ jobs:
     name: Deploy Application to Kubernetes
     needs: terraform
     runs-on: ubuntu-latest
+    # 🔥 ЗАПУСКАТЬ ТОЛЬКО ПРИ ПУШЕ В main ИЛИ ВРУЧНУЮ
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     env:
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
       IMAGE_NAME: nproject-app
