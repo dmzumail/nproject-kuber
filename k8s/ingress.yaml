@@ -3,18 +3,7 @@ kind: Ingress
 metadata:
   name: nproject-ingress
   namespace: default
-  annotations:
-    # Включить автоматический выпуск сертификата Let's Encrypt
-    yandex.cloud/lets-encrypt: "true"
-    # Имя сертификата (будет создан автоматически)
-    yandex.cloud/certificate-id: ""
 spec:
-  tls:
-  - hosts:
-    - nproject.site
-    - www.nproject.site
-    # secretName игнорируется при использовании lets-encrypt, но должен быть
-    secretName: nproject-tls
   rules:
   - host: nproject.site
     http:
