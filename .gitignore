@@ -62,7 +62,7 @@ htmlcov/
 # Docker
 # ======================
 
-.dockerignore
+# .dockerignore ← УБРАНО: этот файл должен быть в репозитории
 
 # ======================
 # IDE / Editors
