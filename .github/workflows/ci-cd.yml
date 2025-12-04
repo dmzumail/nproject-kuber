@@ -84,7 +84,7 @@ jobs:
     name: Deploy Application to Kubernetes
     needs: terraform
     runs-on: ubuntu-latest
-    # 🔥 ЗАПУСКАТЬ ТОЛЬКО ПРИ ПУШЕ В main ИЛИ ВРУЧНУЮ
+    # ЗАПУСКАТЬ ТОЛЬКО ПРИ ПУШЕ В main ИЛИ ВРУЧНУЮ
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     env:
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
@@ -113,13 +113,14 @@ jobs:
           fi
 
       - name: Run tests
-        working-directory: ./app
         run: |
-          if [ -d tests ]; then
-            python -m pytest tests/ -v
+          if [ -d app/tests ]; then
+            python -m pytest app/tests/ -v
           else
             echo "No tests found, skipping."
           fi
+        env:
+          PYTHONPATH: ${{ github.workspace }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
