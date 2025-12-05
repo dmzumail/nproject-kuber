@@ -1,3 +1,16 @@
+# Генерация уникального суффикса для избежания конфликтов имён
+resource "random_string" "suffix" {
+  length  = 6
+  special = false
+  upper   = false
+  lower   = true
+}
+
+# Группа логов для Kubernetes control plane
+resource "yandex_logging_group" "k8s_logs" {
+  name = "k8s-nproject-site-logs"
+}
+
 # DNS-зона
 resource "yandex_dns_zone" "public" {
   name        = "zone-nproject-site"
@@ -24,29 +37,37 @@ resource "yandex_iam_service_account" "k8s_sa" {
   description = "Service account for Kubernetes cluster"
 }
 
-# Роль editor на папку (для управления всеми ресурсами)
+# Роль editor на папку
 resource "yandex_resourcemanager_folder_iam_member" "k8s_sa_editor" {
   folder_id = var.yc_folder_id
   role      = "editor"
   member    = "serviceAccount:${yandex_iam_service_account.k8s_sa.id}"
 }
 
-# Container Registry
-resource "yandex_container_registry" "default" {
-  name = "cr-nproject-site"
-}
-
-# Даём сервисному аккаунту доступ к Container Registry
+# Роль container-registry.admin
 resource "yandex_resourcemanager_folder_iam_member" "k8s_sa_registry_reader" {
   folder_id = var.yc_folder_id
   role      = "container-registry.admin"
   member    = "serviceAccount:${yandex_iam_service_account.k8s_sa.id}"
 }
 
-# Kubernetes Cluster
+# Роль logging.writer — чтобы кластер мог писать логи
+resource "yandex_resourcemanager_folder_iam_member" "k8s_sa_logging" {
+  folder_id = var.yc_folder_id
+  role      = "logging.writer"
+  member    = "serviceAccount:${yandex_iam_service_account.k8s_sa.id}"
+}
+
+# Container Registry с уникальным именем
+resource "yandex_container_registry" "default" {
+  name = "cr-nproject-site-${random_string.suffix.result}"
+}
+
+# Kubernetes Cluster с логированием и таймаутами
 resource "yandex_kubernetes_cluster" "k8s" {
   name               = "k8s-nproject-site-v2"
   network_id         = yandex_vpc_network.default.id
+  log_group_id       = yandex_logging_group.k8s_logs.id
   cluster_ipv4_range = "10.244.0.0/16"
   service_ipv4_range = "10.96.0.0/16"
 
@@ -65,8 +86,15 @@ resource "yandex_kubernetes_cluster" "k8s" {
 
   depends_on = [
     yandex_resourcemanager_folder_iam_member.k8s_sa_editor,
-    yandex_resourcemanager_folder_iam_member.k8s_sa_registry_reader
+    yandex_resourcemanager_folder_iam_member.k8s_sa_registry_reader,
+    yandex_resourcemanager_folder_iam_member.k8s_sa_logging
   ]
+
+  timeouts {
+    create = "45m"
+    update = "30m"
+    delete = "20m"
+  }
 }
 
 # Node Group
@@ -107,7 +135,7 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
   }
 }
 
-# A-записи (обновляются только если передан external_ip)
+# DNS-записи (только если external_ip задан)
 resource "yandex_dns_recordset" "site" {
   count   = var.external_ip != "" ? 1 : 0
   zone_id = yandex_dns_zone.public.id
@@ -124,4 +152,21 @@ resource "yandex_dns_recordset" "www" {
   type    = "A"
   ttl     = 300
   data    = [var.external_ip]
+}
+
+# Outputs
+output "registry_id" {
+  value = yandex_container_registry.default.id
+}
+
+output "k8s_cluster_id" {
+  value = yandex_kubernetes_cluster.k8s.id
+}
+
+output "k8s_cluster_name" {
+  value = yandex_kubernetes_cluster.k8s.name
+}
+
+output "dns_zone_id" {
+  value = yandex_dns_zone.public.id
 }
