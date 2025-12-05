@@ -112,11 +112,17 @@ jobs:
             pip install -r app/requirements.txt
           fi
 
-      - name: Run tests
-        working-directory: ./app
+      - name: Install app as editable package (for correct imports in tests)
         run: |
-          if [ -d tests ]; then
-            python -m pytest tests/ -v
+          cd app
+          pip install -e .
+
+      - name: Run tests
+        # Запускаем из корня репозитория, чтобы pytest видел 'app' как пакет
+        run: |
+          if [ -d app/tests ]; then
+            cd app
+            pytest tests/ -v
           else
             echo "No tests found, skipping."
           fi
