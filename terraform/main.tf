@@ -153,20 +153,3 @@ resource "yandex_dns_recordset" "www" {
   ttl     = 300
   data    = [var.external_ip]
 }
-
-# Outputs
-output "registry_id" {
-  value = yandex_container_registry.default.id
-}
-
-output "k8s_cluster_id" {
-  value = yandex_kubernetes_cluster.k8s.id
-}
-
-output "k8s_cluster_name" {
-  value = yandex_kubernetes_cluster.k8s.name
-}
-
-output "dns_zone_id" {
-  value = yandex_dns_zone.public.id
-}
