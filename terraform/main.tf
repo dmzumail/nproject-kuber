@@ -6,11 +6,6 @@ resource "random_string" "suffix" {
   lower   = true
 }
 
-# Группа логов для записи логов control plane Kubernetes
-resource "yandex_logging_group" "k8s_logs" {
-  name = "k8s-nproject-site-logs"
-}
-
 # Публичная DNS-зона для nproject.site
 resource "yandex_dns_zone" "public" {
   name        = "zone-nproject-site"
@@ -51,19 +46,12 @@ resource "yandex_resourcemanager_folder_iam_member" "k8s_sa_registry_reader" {
   member    = "serviceAccount:${yandex_iam_service_account.k8s_sa.id}"
 }
 
-# IAM: запись логов
-resource "yandex_resourcemanager_folder_iam_member" "k8s_sa_logging" {
-  folder_id = var.yc_folder_id
-  role      = "logging.writer"
-  member    = "serviceAccount:${yandex_iam_service_account.k8s_sa.id}"
-}
-
 # Container Registry с уникальным именем
 resource "yandex_container_registry" "default" {
   name = "cr-nproject-site-${random_string.suffix.result}"
 }
 
-# Kubernetes Cluster
+# Kubernetes Cluster (без логирования)
 resource "yandex_kubernetes_cluster" "k8s" {
   name               = "k8s-nproject-site-v2"
   network_id         = yandex_vpc_network.default.id
@@ -78,11 +66,6 @@ resource "yandex_kubernetes_cluster" "k8s" {
       zone      = "ru-central1-a"
       subnet_id = yandex_vpc_subnet.default.id
     }
-
-    # ✅ Правильное подключение логов (внутри master, а не на верхнем уровне)
-    log {
-      group_id = yandex_logging_group.k8s_logs.id
-    }
   }
 
   service_account_id       = yandex_iam_service_account.k8s_sa.id
@@ -91,8 +74,7 @@ resource "yandex_kubernetes_cluster" "k8s" {
 
   depends_on = [
     yandex_resourcemanager_folder_iam_member.k8s_sa_editor,
-    yandex_resourcemanager_folder_iam_member.k8s_sa_registry_reader,
-    yandex_resourcemanager_folder_iam_member.k8s_sa_logging
+    yandex_resourcemanager_folder_iam_member.k8s_sa_registry_reader
   ]
 
   timeouts {
@@ -140,7 +122,7 @@ resource "yandex_kubernetes_node_group" "k8s_nodes" {
   }
 }
 
-# DNS A-записи (создаются только если передан external_ip)
+# DNS A-записи
 resource "yandex_dns_recordset" "site" {
   count   = var.external_ip != "" ? 1 : 0
   zone_id = yandex_dns_zone.public.id

@@ -84,7 +84,7 @@ jobs:
     name: Deploy Application to Kubernetes
     needs: terraform
     runs-on: ubuntu-latest
-    # 🔥 ЗАПУСКАТЬ ТОЛЬКО ПРИ ПУШЕ В main ИЛИ ВРУЧНУЮ
+    # Запускать только при пушу в main или вручную
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     env:
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
@@ -118,7 +118,6 @@ jobs:
           pip install -e .
 
       - name: Run tests
-        # Запускаем из корня репозитория, чтобы pytest видел 'app' как пакет
         run: |
           if [ -d app/tests ]; then
             cd app
@@ -161,12 +160,12 @@ jobs:
 
       - name: Wait for Kubernetes cluster and get kubeconfig
         run: |
-          for i in {1..30}; do
+          for i in {1..90}; do  # ⏱️ 30 минут (90 × 20 сек)
             if yc k8s cluster get k8s-nproject-site-v2 --format json > /dev/null 2>&1; then
               yc k8s cluster get-credentials --name k8s-nproject-site-v2 --external
               exit 0
             fi
-            echo "Cluster not ready, retrying in 20s... ($i/30)"
+            echo "Cluster not ready, retrying in 20s... ($i/90)"
             sleep 20
           done
           echo "Timeout: cluster was not created"
