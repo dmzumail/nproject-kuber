@@ -84,7 +84,6 @@ jobs:
     name: Deploy Application to Kubernetes
     needs: terraform
     runs-on: ubuntu-latest
-    # Запускать только при пушу в main или вручную
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     env:
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
@@ -112,16 +111,13 @@ jobs:
             pip install -r app/requirements.txt
           fi
 
-      - name: Install app as editable package (for correct imports in tests)
-        run: |
-          cd app
-          pip install -e .
+      - name: Install app as editable package
+        run: pip install -e ./app
 
       - name: Run tests
         run: |
           if [ -d app/tests ]; then
-            cd app
-            pytest tests/ -v
+            pytest app/tests/ -v
           else
             echo "No tests found, skipping."
           fi
@@ -160,7 +156,7 @@ jobs:
 
       - name: Wait for Kubernetes cluster and get kubeconfig
         run: |
-          for i in {1..90}; do  # ⏱️ 30 минут (90 × 20 сек)
+          for i in {1..90}; do
             if yc k8s cluster get k8s-nproject-site-v2 --format json > /dev/null 2>&1; then
               yc k8s cluster get-credentials --name k8s-nproject-site-v2 --external
               exit 0
