@@ -22,5 +22,5 @@ test = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["app*"]
+where = ["."]      # Ищет пакеты в корне проекта
+include = ["app*"] # Включает app/ как пакет

@@ -112,7 +112,7 @@ jobs:
           fi
 
       - name: Install app as editable package
-        run: pip install -e ./app
+        run: pip install -e .
 
       - name: Run tests
         run: |
