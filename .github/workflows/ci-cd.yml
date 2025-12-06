@@ -117,7 +117,7 @@ jobs:
       - name: Run tests
         run: |
           if [ -d app/tests ]; then
-            pytest app/tests/ -v
+            pytest app/tests/ -v --asyncio-mode=strict
           else
             echo "No tests found, skipping."
           fi
