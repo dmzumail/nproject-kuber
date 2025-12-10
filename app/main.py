@@ -207,3 +207,8 @@ async def read_root(request: Request):
 @app.get("/healthz")
 def health_check():
     return {"status": "healthy"}
+
+# --- Мониторинг: экспорт метрик Prometheus ---
+from prometheus_fastapi_instrumentator import Instrumentator
+
+Instrumentator().instrument(app).expose(app)
