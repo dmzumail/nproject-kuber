@@ -13,14 +13,10 @@ spec:
       labels:
         app: nproject-app
       annotations:
-        # Аннотации для Prometheus Operator — ОБЯЗАТЕЛЬНЫ
         prometheus.io/scrape: "true"
         prometheus.io/port: "8000"
         prometheus.io/path: "/metrics"
     spec:
-      # imagePullSecrets — раскомментируйте, ТОЛЬКО если будут ошибки ImagePullBackOff
-      # imagePullSecrets:
-      #   - name: yc-cr-secret
       containers:
       - name: app
         image: cr.yandex/__REGISTRY_ID__/nproject-app:__TAG__
