@@ -59,7 +59,7 @@ resource "yandex_kubernetes_cluster" "k8s" {
   service_ipv4_range = "10.96.0.0/16"
 
   master {
-    version   = "1.30"
+    version   = "1.31"
     public_ip = true
 
     zonal {
@@ -88,7 +88,7 @@ resource "yandex_kubernetes_cluster" "k8s" {
 resource "yandex_kubernetes_node_group" "k8s_nodes" {
   cluster_id = yandex_kubernetes_cluster.k8s.id
   name       = "ng-nproject-site-v2"
-  version    = "1.30"
+  version    = "1.31"
 
   instance_template {
     platform_id = "standard-v3"
