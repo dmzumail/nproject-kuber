@@ -1,6 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
-meta
+metadata:
   name: nproject-app
   namespace: default
 spec:
@@ -9,7 +9,7 @@ spec:
     matchLabels:
       app: nproject-app
   template:
-    meta
+    metadata:
       labels:
         app: nproject-app
       annotations:
